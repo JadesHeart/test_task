@@ -1,15 +1,15 @@
-package authorization
+package auth
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
 	resp "test_task/internal/lib/response"
 	"test_task/internal/lib/sl"
+	"test_task/internal/pkg/service"
 )
 
 type Request struct {
@@ -23,15 +23,7 @@ type Response struct {
 	Error  string `json:"error,omitempty"`
 }
 
-type Authorizer interface {
-	FindUser(username string) (bool, int64, error)
-	CheckPass(username string, password string) (bool, error)
-	CheckFailedLoginAttempts(username string) (bool, error)
-	AddingFailedLoginAttempt(username string) error
-	CreateSession(userID int64, token string) error
-}
-
-func New(log *slog.Logger, authorizer Authorizer) gin.HandlerFunc {
+func New(log *slog.Logger, services *service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		op := "handlers.authorization.New"
 
@@ -61,78 +53,48 @@ func New(log *slog.Logger, authorizer Authorizer) gin.HandlerFunc {
 			return
 		}
 
-		userExist, userID, err := authorizer.FindUser(req.Username)
+		userID, err := services.AuthorizationBD.FindUser(req.Username)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				log.Error("User not exist", sl.Err(err))
-
-				c.JSON(resp.StatusError, "User not exist")
-
-				return
+			if errors.Is(err, sql.ErrNoRows) {
+				c.JSON(resp.StatusError, "User does not exist")
 			}
-			log.Error("Failed check user existence", sl.Err(err))
-			c.JSON(resp.StatusError, "Failed check user existence")
+			c.JSON(http.StatusInternalServerError, "Failed check user existence")
 			return
 		}
 
-		if !userExist {
-			c.JSON(resp.StatusError, "User does not exist")
-
-			return
-		}
-
-		userBlock, err := authorizer.CheckFailedLoginAttempts(req.Username)
+		isBlocked, err := services.AuthorizationBD.CheckFailedLoginAttempts(req.Username)
 		if err != nil {
-			log.Error("Failed check login attempts", sl.Err(err))
-
-			c.JSON(resp.StatusError, "Failed check login attempts")
+			c.JSON(http.StatusInternalServerError, "Failed check login attempts")
 
 			return
 		}
-		if userBlock {
-			c.JSON(resp.StatusError, "User block")
+		if isBlocked {
+			c.JSON(resp.StatusError, "User is blocked")
 
 			return
 		}
 
-		passCorrect, err := authorizer.CheckPass(req.Username, req.Password)
+		passCorrect, err := services.AuthorizationBD.CheckPass(req.Username, req.Password)
 		if err != nil {
-			log.Error("Failed check user existence", sl.Err(err))
-
 			c.JSON(resp.StatusError, "Failed compared password")
 
 			return
 		}
 		if !passCorrect {
-			err = authorizer.AddingFailedLoginAttempt(req.Username)
-			if err != nil {
-				log.Error("Failed add login attempt", sl.Err(err))
-
-				c.JSON(resp.StatusError, "Some error")
-
-				return
-			}
-
 			c.JSON(resp.StatusError, "Incorrect password")
 
 			return
 		}
 
-		token, err := generateToken()
+		token, err := services.AuthorizationBD.GenerateToken()
 		if err != nil {
-			log.Error("Failed generate token", sl.Err(err))
-
 			c.JSON(resp.StatusError, "Some error")
 
 			return
 		}
 
-		fmt.Println(token)
-
-		err = authorizer.CreateSession(userID, token)
+		err = services.AuthorizationBD.CreateSession(userID, token)
 		if err != nil {
-			log.Error("Failed save session", sl.Err(err))
-
 			c.JSON(resp.StatusError, "Failed save session")
 
 			return
@@ -147,13 +109,4 @@ func responseOK(c *gin.Context, token string) {
 		Status: resp.StatusOK,
 		Token:  token,
 	})
-}
-
-func generateToken() (string, error) {
-	newUUID, err := uuid.NewRandom()
-	if err != nil {
-		return "", err
-	}
-
-	return newUUID.String(), nil
 }

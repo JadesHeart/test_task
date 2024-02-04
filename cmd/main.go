@@ -5,9 +5,11 @@ import (
 	"log/slog"
 	"os"
 	"test_task/internal/config"
-	"test_task/internal/http-server/handlers/authorization"
-	"test_task/internal/http-server/handlers/ping"
 	"test_task/internal/lib/sl"
+	"test_task/internal/pkg/handlers/auth"
+	"test_task/internal/pkg/handlers/ping"
+	"test_task/internal/pkg/repository"
+	"test_task/internal/pkg/service"
 	"test_task/storage/postgres"
 )
 
@@ -20,13 +22,15 @@ func main() {
 		logger.Error("Failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
-
 	logger.Info("Successful init database")
+
+	repos := repository.NewRepository(storage, logger)
+	services := service.NewService(repos, logger)
 
 	r := gin.Default()
 
-	r.POST("/auth", authorization.New(logger, storage))
-	r.POST("/ping", ping.New(logger, storage))
+	r.POST("/auth", auth.New(logger, services))
+	r.POST("/ping", ping.New(logger, services))
 
 	err = r.Run(cfg.Address)
 	if err != nil {
