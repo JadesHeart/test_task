@@ -2,17 +2,18 @@ package repository
 
 import (
 	"log/slog"
+	"test_task/internal/pkg/models"
 	"test_task/storage/postgres"
 	"time"
 )
 
 type AuthorizationBD interface {
-	FindUser(username string) (bool, int64, error)
+	FindUser(username string) (*models.User, error)
 	CheckPass(username string, password string) (bool, error)
 	CheckFailedLoginAttempts(username string) (bool, error)
 	AddingFailedLoginAttempt(username string) error
 	CreateSession(userID int64, token string) error
-	GenerateToken() (string, error)
+	GenerateToken() (*models.Session, error)
 }
 
 type Ping interface {

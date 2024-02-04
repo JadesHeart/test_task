@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"test_task/internal/lib/sl"
+	"test_task/internal/pkg/lib/sl"
 	"time"
 )
 

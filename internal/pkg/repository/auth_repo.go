@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"log/slog"
-	"test_task/internal/lib/sl"
+	"test_task/internal/pkg/lib/sl"
+	"test_task/internal/pkg/models"
 	"time"
 )
 
@@ -30,22 +31,21 @@ const (
 	createSessionPath    = "repository.auth_repo.CreateSession"
 )
 
-func (storage *AuthPostgres) FindUser(username string) (bool, int64, error) {
+func (storage *AuthPostgres) FindUser(username string) (*models.User, error) {
 
-	query := "SELECT EXISTS(SELECT 1 FROM Users WHERE Username = $1), UserID FROM Users WHERE Username = $1"
+	query := "SELECT UserID FROM Users WHERE Username = $1;"
 
-	var rowExist bool
 	var userID int64
 
-	err := storage.db.QueryRow(query, username).Scan(&rowExist, &userID)
+	err := storage.db.QueryRow(query, username).Scan(&userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, 0, nil
+			return &models.User{UserID: 0}, nil
 		}
-		return false, 0, fmt.Errorf("%s: %w", findUserPath, err)
+		return &models.User{UserID: 0}, fmt.Errorf("%s: %w", findUserPath, err)
 	}
 
-	return rowExist, userID, nil
+	return &models.User{UserID: userID}, nil
 }
 
 func (storage *AuthPostgres) CheckPass(username string, password string) (bool, error) {
@@ -120,12 +120,12 @@ func (storage *AuthPostgres) CreateSession(userID int64, token string) error {
 	return nil
 }
 
-func (storage *AuthPostgres) GenerateToken() (string, error) {
+func (storage *AuthPostgres) GenerateToken() (*models.Session, error) {
 	newUUID, err := uuid.NewRandom()
 	if err != nil {
 		storage.logger.Error("Failed generate token", sl.Err(err))
 
-		return "", err
+		return &models.Session{Token: ""}, err
 	}
-	return newUUID.String(), nil
+	return &models.Session{Token: newUUID.String()}, nil
 }

@@ -4,8 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
-	resp "test_task/internal/lib/response"
-	"test_task/internal/lib/sl"
+	resp "test_task/internal/pkg/lib/response"
+	"test_task/internal/pkg/lib/sl"
 	"test_task/internal/pkg/service"
 )
 

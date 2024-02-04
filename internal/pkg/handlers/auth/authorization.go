@@ -7,8 +7,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"log/slog"
 	"net/http"
-	resp "test_task/internal/lib/response"
-	"test_task/internal/lib/sl"
+	resp "test_task/internal/pkg/lib/response"
+	"test_task/internal/pkg/lib/sl"
 	"test_task/internal/pkg/service"
 )
 
@@ -53,10 +53,11 @@ func New(log *slog.Logger, services *service.Service) gin.HandlerFunc {
 			return
 		}
 
-		userID, err := services.AuthorizationBD.FindUser(req.Username)
+		user, err := services.AuthorizationBD.FindUser(req.Username)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(resp.StatusError, "User does not exist")
+				return
 			}
 			c.JSON(http.StatusInternalServerError, "Failed check user existence")
 			return
@@ -86,21 +87,21 @@ func New(log *slog.Logger, services *service.Service) gin.HandlerFunc {
 			return
 		}
 
-		token, err := services.AuthorizationBD.GenerateToken()
+		tokenModel, err := services.AuthorizationBD.GenerateToken()
 		if err != nil {
 			c.JSON(resp.StatusError, "Some error")
 
 			return
 		}
 
-		err = services.AuthorizationBD.CreateSession(userID, token)
+		err = services.AuthorizationBD.CreateSession(user.UserID, tokenModel.Token)
 		if err != nil {
 			c.JSON(resp.StatusError, "Failed save session")
 
 			return
 		}
 
-		responseOK(c, token)
+		responseOK(c, tokenModel.Token)
 	}
 }
 

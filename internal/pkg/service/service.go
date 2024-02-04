@@ -2,16 +2,17 @@ package service
 
 import (
 	"log/slog"
+	"test_task/internal/pkg/models"
 	"test_task/internal/pkg/repository"
 	"time"
 )
 
 type AuthorizationBD interface {
-	FindUser(username string) (int64, error)
+	FindUser(username string) (*models.User, error)
 	CheckPass(username string, password string) (bool, error)
 	CheckFailedLoginAttempts(username string) (bool, error)
 	CreateSession(userID int64, token string) error
-	GenerateToken() (string, error)
+	GenerateToken() (*models.Session, error)
 }
 
 type Ping interface {

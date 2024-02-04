@@ -3,7 +3,8 @@ package service
 import (
 	"database/sql"
 	"log/slog"
-	"test_task/internal/lib/sl"
+	"test_task/internal/pkg/lib/sl"
+	"test_task/internal/pkg/models"
 	"test_task/internal/pkg/repository"
 )
 
@@ -19,17 +20,17 @@ func NewAuthServices(repo repository.AuthorizationBD, logger *slog.Logger) *Auth
 	}
 }
 
-func (s *AuthService) FindUser(username string) (int64, error) {
-	userExist, userID, err := s.repoBD.FindUser(username)
+func (s *AuthService) FindUser(username string) (*models.User, error) {
+	user, err := s.repoBD.FindUser(username)
 	if err != nil {
 		s.logger.Error("Failed check user existence", sl.Err(err))
-		return 0, err
+		return nil, err
 	}
-	if !userExist {
+	if user.UserID == 0 {
 		s.logger.Info("User does not exist")
-		return 0, sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
-	return userID, nil
+	return user, nil
 }
 
 func (s *AuthService) CheckFailedLoginAttempts(username string) (bool, error) {
@@ -64,6 +65,6 @@ func (s *AuthService) CreateSession(userID int64, token string) error {
 	return s.repoBD.CreateSession(userID, token)
 }
 
-func (s *AuthService) GenerateToken() (string, error) {
+func (s *AuthService) GenerateToken() (*models.Session, error) {
 	return s.repoBD.GenerateToken()
 }
