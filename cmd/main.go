@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"test_task/internal/config"
 	"test_task/internal/pkg/handlers/auth"
 	"test_task/internal/pkg/handlers/ping"
@@ -29,16 +33,35 @@ func main() {
 
 	r := gin.Default()
 
+	// Создайте HTTP-сервер, но не запускайте его
+	srv := &http.Server{
+		Addr:    cfg.Address,
+		Handler: r,
+	}
+
 	r.POST("/auth", auth.New(logger, services))
 	r.POST("/ping", ping.New(logger, services))
 
-	err = r.Run(cfg.Address)
-	if err != nil {
-		logger.Error("error start server", sl.Err(err))
-	}
+	go func() {
+		err = r.Run(cfg.Address)
+		if err != nil {
+			logger.Error("error start server", sl.Err(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
 
 	logger.Info("starting server", slog.String("address", cfg.Address))
 
+	if err := srv.Shutdown(context.Background()); err != nil {
+		logger.Error("error shutting down server", sl.Err(err))
+	}
+
+	if err := storage.DB.Close(); err != nil {
+		logger.Info("db connection close", slog.String("address", cfg.Address))
+	}
 }
 
 func setupLogger(env string) *slog.Logger {

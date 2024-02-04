@@ -1,5 +1,5 @@
 env: "local" # local, dev, prod
-storage_path: "postgres://postgres:lillol000@localhost:5432/test_task?sslmode=disable"
+storage_path: "postgres://:@localhost:5432/test_task?sslmode=disable"
 
 http_server:
   address: ":8080"

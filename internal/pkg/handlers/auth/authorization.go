@@ -87,21 +87,21 @@ func New(log *slog.Logger, services *service.Service) gin.HandlerFunc {
 			return
 		}
 
-		tokenModel, err := services.AuthorizationBD.GenerateToken()
+		sessionModel, err := services.AuthorizationBD.GenerateToken()
 		if err != nil {
 			c.JSON(resp.StatusError, "Some error")
 
 			return
 		}
 
-		err = services.AuthorizationBD.CreateSession(user.UserID, tokenModel.Token)
+		err = services.AuthorizationBD.CreateSession(user.UserID, sessionModel.Token)
 		if err != nil {
 			c.JSON(resp.StatusError, "Failed save session")
 
 			return
 		}
 
-		responseOK(c, tokenModel.Token)
+		responseOK(c, sessionModel.Token)
 	}
 }
 
